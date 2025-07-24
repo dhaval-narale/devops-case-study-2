@@ -4,8 +4,7 @@ pipeline {
     environment {
         AWS_ACCESS_KEY_ID     = credentials('aws-access-key-id')
         AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
-        DOCKERHUB_USER        = credentials('dockerhub-user')
-        DOCKERHUB_PASSWORD    = credentials('dockerhub-pass')
+        DOCKERHUB_CREDS       = credentials('dockerhub-creds')
     }
 
     stages {
@@ -19,7 +18,7 @@ pipeline {
         stage('Build and Push Docker Image') {
             steps {
                 sh '''
-                echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USER" --password-stdin
+                echo "$DOCKERHUB_CREDS_PSW" | docker login -u "$DOCKERHUB_CREDS_USR" --password-stdin
                 chmod +x ./build_and_push.sh
                 ./build_and_push.sh
                 '''
