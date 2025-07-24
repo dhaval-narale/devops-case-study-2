@@ -1,0 +1,58 @@
+- name: Deploy Docker Container on EC2
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Update APT cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu jammy stable
+        state: present
+        filename: docker
+
+    - name: Install Docker CE
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: latest
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: "Pull Docker image from DockerHub (tag: b00ea55)"
+      docker_image:
+        name: dhavalnarale/devops-case-study:b00ea55
+        source: pull
+
+    - name: Run Docker container using the pulled image
+      docker_container:
+        name: inventory-app
+        image: dhavalnarale/devops-case-study:b00ea55
+        state: started
+        restart_policy: always
+        ports:
+          - "80:3000"
