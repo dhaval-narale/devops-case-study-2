@@ -3,8 +3,6 @@ pipeline {
 
     environment {
         DOCKERHUB_CREDS = credentials('dockerhub-creds')
-        AWS_ACCESS_KEY_ID = credentials('aws-access-key-id').accessKey
-        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key').secretKey
     }
 
     stages {
@@ -27,7 +25,10 @@ pipeline {
         stage('Terraform Apply') {
             steps {
                 dir('infra') {
-                    withEnv(["AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}", "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"]) {
+                    withCredentials([
+                        string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
+                        string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
                         sh 'terraform init'
                         sh 'terraform apply -auto-approve'
                     }
