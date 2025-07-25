@@ -2,7 +2,8 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDS = credentials('dockerhub-creds')
+        DOCKER_USERNAME = 'dhavalnarale'
+        IMAGE_NAME = "devops-case-study"
     }
 
     stages {
@@ -13,24 +14,37 @@ pipeline {
         }
 
         stage('Build and Push Docker Image') {
+            environment {
+                DOCKER_PASSWORD = credentials('dockerhub-password')
+            }
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                    sh 'echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin'
-                    sh 'chmod +x ./scripts/build_and_push.sh'
-                    sh './scripts/build_and_push.sh'
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-cred', passwordVariable: 'DOCKERHUB_CREDS_PSW', usernameVariable: 'DOCKERHUB_CREDS')]) {
+                    sh '''
+                        echo "$DOCKERHUB_CREDS_PSW" | docker login -u "$DOCKERHUB_CREDS" --password-stdin
+                        chmod +x ./scripts/build_and_push.sh
+                        ./scripts/build_and_push.sh
+                    '''
                 }
             }
         }
 
         stage('Terraform Apply') {
+            environment {
+                AWS_ACCESS_KEY_ID     = credentials('aws-access-key-id')
+                AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
+            }
             steps {
                 dir('infra') {
-                    withCredentials([
-                        string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
-                        sh 'terraform init'
-                        sh 'terraform apply -auto-approve'
+                    timeout(time: 8, unit: 'MINUTES') {
+                        script {
+                            echo "=== Terraform Init ==="
+                            sh 'terraform init'
+                            
+                            echo "=== Terraform Apply ==="
+                            sh 'terraform apply -auto-approve'
+                            
+                            echo "=== Terraform Apply Completed Successfully ==="
+                        }
                     }
                 }
             }
@@ -38,9 +52,9 @@ pipeline {
 
         stage('Ansible Deploy') {
             steps {
+                echo "=== Ansible Deployment ==="
                 sh '''
-                    ansible-playbook -i ansible/hosts.ini ansible/deploy.yml \
-                    --private-key ansible-key.pem
+                    ansible-playbook -i infra/inventory.ini ansible/deploy.yml
                 '''
             }
         }
