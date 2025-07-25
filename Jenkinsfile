@@ -49,7 +49,7 @@ pipeline {
             steps {
                 dir('ansible') {
                     sh '''
-                        ansible-playbook -i ansible/hosts.ini ansible/deploy.yml
+                        ansible-playbook -i hosts.ini deploy.yml
                     '''
                 }
             }
