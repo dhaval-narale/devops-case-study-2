@@ -2,22 +2,25 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_USERNAME = 'dhavalnarale'
-        IMAGE_NAME = "devops-case-study"
+        IMAGE_TAG = "devops-case-study:${env.BUILD_ID}"
+    }
+
+    options {
+        timestamps()  // 💡 Pro Tip 1: Adds timestamp to log entries
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'develop', url: 'https://github.com/dhaval-narale/devops-case-study-2.git'
+                checkout scm
             }
         }
 
         stage('Build and Push Docker Image') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-cred', usernameVariable: 'DOCKERHUB_USERNAME', passwordVariable: 'DOCKERHUB_PASSWORD')]) {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
                     sh '''
-                        echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+                        echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
                         chmod +x ./scripts/build_and_push.sh
                         ./scripts/build_and_push.sh
                     '''
@@ -32,9 +35,11 @@ pipeline {
             }
             steps {
                 dir('infra') {
-                    timeout(time: 8, unit: 'MINUTES') {
-                        sh 'terraform init'
-                        sh 'terraform apply -auto-approve'
+                    timeout(time: 10, unit: 'MINUTES') {  // 💡 Pro Tip 2: Prevents hanging
+                        sh '''
+                            terraform init
+                            terraform apply -auto-approve
+                        '''
                     }
                 }
             }
@@ -42,10 +47,11 @@ pipeline {
 
         stage('Ansible Deploy') {
             steps {
-                echo "=== Ansible Deployment ==="
-                sh '''
-                    ansible-playbook -i infra/inventory.ini ansible/deploy.yml
-                '''
+                dir('ansible') {
+                    sh '''
+                        ansible-playbook -i inventory.txt playbook.yml
+                    '''
+                }
             }
         }
     }
