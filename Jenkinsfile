@@ -14,13 +14,10 @@ pipeline {
         }
 
         stage('Build and Push Docker Image') {
-            environment {
-                DOCKER_PASSWORD = credentials('dockerhub-password')
-            }
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-cred', passwordVariable: 'DOCKERHUB_CREDS_PSW', usernameVariable: 'DOCKERHUB_CREDS')]) {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-cred', usernameVariable: 'DOCKERHUB_USERNAME', passwordVariable: 'DOCKERHUB_PASSWORD')]) {
                     sh '''
-                        echo "$DOCKERHUB_CREDS_PSW" | docker login -u "$DOCKERHUB_CREDS" --password-stdin
+                        echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
                         chmod +x ./scripts/build_and_push.sh
                         ./scripts/build_and_push.sh
                     '''
@@ -36,15 +33,8 @@ pipeline {
             steps {
                 dir('infra') {
                     timeout(time: 8, unit: 'MINUTES') {
-                        script {
-                            echo "=== Terraform Init ==="
-                            sh 'terraform init'
-                            
-                            echo "=== Terraform Apply ==="
-                            sh 'terraform apply -auto-approve'
-                            
-                            echo "=== Terraform Apply Completed Successfully ==="
-                        }
+                        sh 'terraform init'
+                        sh 'terraform apply -auto-approve'
                     }
                 }
             }
