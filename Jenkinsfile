@@ -35,7 +35,7 @@ pipeline {
             }
             steps {
                 dir('infra') {
-                    timeout(time: 10, unit: 'MINUTES') {  // 💡 Pro Tip 2: Prevents hanging
+                    timeout(time: 20, unit: 'MINUTES') {  // 💡 Pro Tip 2: Prevents hanging
                         sh '''
                             terraform init
                             terraform apply -auto-approve
@@ -49,7 +49,7 @@ pipeline {
             steps {
                 dir('ansible') {
                     sh '''
-                        ansible-playbook -i inventory.txt playbook.yml
+                        ansible-playbook -i ansible/hosts.ini ansible/deploy.yml
                     '''
                 }
             }
