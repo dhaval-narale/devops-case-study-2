@@ -9,7 +9,7 @@
 # echo "[+] Pushing image to DockerHub"
 # docker push $IMAGE
 
-#!/usr/bin/env bash
+#!/bin/bash
 set -euo pipefail
 
 IMAGE="$1"
