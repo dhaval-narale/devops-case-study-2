@@ -84,7 +84,7 @@ pipeline {
                     sh '''
                         echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
                         chmod +x ./scripts/build_and_push.sh
-                        ./scripts/build_and_push.sh $IMAGE_TAG
+                        bash ./scripts/build_and_push.sh $IMAGE_TAG
                     '''
                 }
             }
