@@ -89,7 +89,7 @@ pipeline {
                 }
             }
         }
-
+        /*
         stage('Terraform Apply') {
             environment {
                 AWS_ACCESS_KEY_ID     = credentials('aws-access-key-id')
@@ -106,6 +106,22 @@ pipeline {
                 }
             }
         }
+        */
+
+        stage('Terraform Apply') {
+    steps {
+        dir('infra') {
+            withCredentials([aws(credentialsId: 'aws-access-key-id', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                sh '''
+                    terraform init
+                    terraform apply -auto-approve
+                '''
+            }
+        }
+    }
+}
+
+
 
         stage('Ansible Deploy') {
             steps {
