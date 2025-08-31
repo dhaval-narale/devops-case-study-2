@@ -61,6 +61,9 @@
 - name: Deploy Docker Container on EC2
   hosts: all
   become: yes
+  vars:
+    #image_tag: "{{ image_tag | default('latest', true) }}"  
+    image_tag : latest
 
   tasks:
     - name: Update APT cache
@@ -105,13 +108,13 @@
 
     - name: "Pull Docker image from DockerHub"
       docker_image:
-        name: "{{ image_tag }}"
+        name: "dhavalnarale/devops-case-study:{{ image_tag }}"
         source: pull
 
     - name: Run Docker container using the pulled image
       docker_container:
         name: inventory-app
-        image: "{{ image_tag }}"
+        image: "dhavalnarale/devops-case-study:{{ image_tag }}"
         state: started
         restart_policy: always
         ports:
