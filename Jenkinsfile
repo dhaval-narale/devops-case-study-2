@@ -113,6 +113,10 @@ pipeline {
         dir('infra') {
             withCredentials([aws(credentialsId: 'aws-access-key-id', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                 sh '''
+                    
+                    export TF_LOG=DEBUG
+                    export TF_LOG_PATH=terraform_debug.log
+
                     terraform init
                     terraform apply -auto-approve
                 '''
