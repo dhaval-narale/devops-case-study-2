@@ -1,140 +1,78 @@
-/*
 pipeline {
     agent any
 
     environment {
-        IMAGE_TAG = "devops-case-study:${env.BUILD_ID}"
-    }
-
-    options {
-        timestamps()  // 💡 Pro Tip 1: Adds timestamp to log entries
-    }
-
-    stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
-        stage('Build and Push Docker Image') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                    sh '''
-                        echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
-                        chmod +x ./scripts/build_and_push.sh
-                        ./scripts/build_and_push.sh
-                    '''
-                }
-            }
-        }
-
-        stage('Terraform Apply') {
-            environment {
-                AWS_ACCESS_KEY_ID     = credentials('aws-access-key-id')
-                AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
-            }
-            steps {
-                dir('infra') {
-                    timeout(time: 20, unit: 'MINUTES') {  // 💡 Pro Tip 2: Prevents hanging
-                        sh '''
-                            terraform init
-                            terraform apply -auto-approve
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Ansible Deploy') {
-            steps {
-                dir('ansible') {
-                    sh '''
-                        ansible-playbook -i hosts.ini deploy.yml
-                    '''
-                }
-            }
-        }
-    }
-}
-*/
-
-pipeline {
-    agent any
-
-    environment {
-        GIT_COMMIT = ''  // will be assigned in script block
+        GIT_COMMIT = "${env.GIT_COMMIT ?: 'latest'}"
+        IMAGE = "dhaval-narale/devops-nodejs-app:${GIT_COMMIT}"
+        SSH_KEY_PATH = '/var/lib/jenkins/.ssh/devops-server-key' 
+        AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
+        AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
     }
 
     stages {
-        stage('Checkout') {
+        stage('Checkout Code') {
             steps {
-                checkout scm
+                git branch: 'develop', url: 'https://github.com/dhaval-narale/devops-case-study-2.git'
             }
         }
 
-        stage('Build and Push Docker Image') {
+        stage('Build & Push Docker Image') {
             steps {
                 script {
-                    GIT_COMMIT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-                    env.IMAGE_TAG = "dhavalnarale/devops-case-study:${GIT_COMMIT}"
-                }
-
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                    sh '''
-                        echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
-                        chmod +x ./scripts/build_and_push.sh
-                        bash ./scripts/build_and_push.sh $IMAGE_TAG
-                    '''
-                }
-            }
-        }
-        /*
-        stage('Terraform Apply') {
-            environment {
-                AWS_ACCESS_KEY_ID     = credentials('aws-access-key-id')
-                AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
-            }
-            steps {
-                dir('infra') {
-                    timeout(time: 20, unit: 'MINUTES') {
-                        sh '''
-                            terraform init
-                            terraform apply -auto-approve
-                        '''
+                    withDockerRegistry([credentialsId: 'DockerHub', url: '']) {
+                        sh 'chmod +x scripts/build_and_push.sh'
+                        sh './scripts/build_and_push.sh'
                     }
                 }
             }
         }
-        */
 
-        stage('Terraform Apply') {
-    steps {
-        dir('infra') {
-            withCredentials([aws(credentialsId: 'aws-access-key-id', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
-                sh '''
-                    
-                    export TF_LOG=DEBUG
-                    export TF_LOG_PATH=terraform_debug.log
+        stage('Copy SSH Key') {
+            steps {
+                sh 'cp /var/lib/jenkins/.ssh/devops-server-key.pub infra/'
+            }
+        }
 
-                    terraform init
-                    terraform apply -auto-approve
-                '''
+        stage('Terraform Apply - Provision Infra') {
+            steps {
+                dir('infra') {
+                    sh 'terraform init'
+                    timeout(time: 30, unit: 'MINUTES') {
+                        sh 'terraform apply -auto-approve'
+                        sh 'terraform refresh'
+                    }
+                }
+            }
+        }
+
+        stage('Prepare Ansible Hosts') {
+            steps {
+                script {
+                    def ec2_ip = sh(script: "terraform -chdir=infra output -raw ec2_pub_ip", returnStdout: true).trim()
+                    writeFile file: 'ansible/hosts.ini', text: """
+                    [app_server]
+                    ${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${SSH_KEY_PATH} ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+                    """
+                }
+            }
+        }
+
+        stage('Ansible Deployment') {
+            steps {
+                timeout(time: 10, unit: 'MINUTES') {
+                    sh "cp ${SSH_KEY_PATH} ansible/"
+                    sh 'ansible-playbook -i ansible/hosts.ini ansible/deploy.yml'
+                }
             }
         }
     }
-}
 
-
-
-        stage('Ansible Deploy') {
-            steps {
-                dir('ansible') {
-                    sh '''
-                        ansible-playbook -i hosts.ini deploy.yml --extra-vars "image_tag=$IMAGE_TAG"
-                    '''
-                }
-            }
+    post {
+        success {
+            echo "Pipeline executed successfully!"
+        }
+        failure {
+            echo "Pipeline failed. Check logs."
         }
     }
 }
