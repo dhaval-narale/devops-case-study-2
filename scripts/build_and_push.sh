@@ -1,22 +1,11 @@
-# #!/usr/bin/env bash
-# set -euo pipefail
-
-# IMAGE="dhavalnarale/devops-case-study:$(git rev-parse --short HEAD)"
-
-# echo "[+] Building image: $IMAGE"
-# docker build -t $IMAGE .
-
-# echo "[+] Pushing image to DockerHub"
-# docker push $IMAGE
-
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE="$1"
+GIT_COMMIT=${GIT_COMMIT:-latest}
+IMAGE="dhaval-narale/devops-nodejs-app:$GIT_COMMIT"
 
-echo "[+] Building image: $IMAGE"
-docker build -t $IMAGE .
+echo "Building Docker Image: $IMAGE"
+docker build -t "$IMAGE" .
 
-echo "[+] Pushing image to DockerHub"
-docker push $IMAGE
-
+echo "Pushing Docker Image to DockerHub: $IMAGE"
+docker push "$IMAGE"
