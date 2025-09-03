@@ -1,86 +1,87 @@
+# Provider
+
 provider "aws" {
-  region = var.region
+    region = var.region
 }
 
-data "aws_ami" "ubuntu" {
-  most_recent = true
-  owners      = ["099720109477"]
+# Key-Pair Login
 
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
-  }
+resource "aws_key_pair" "my_key"{
+    key_name = "devops-server-key"
+    public_key = file("devops-server-key.pub")
 }
 
-resource "aws_vpc" "main_vpc" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_support   = true
-  enable_dns_hostnames = true
+# Default VPC
+
+resource "aws_default_vpc" "default"{
+
 }
 
-resource "aws_subnet" "public_subnet" {
-  vpc_id                  = aws_vpc.main_vpc.id
-  cidr_block              = "10.0.1.0/24"
-  availability_zone       = "ap-south-1a"
-  map_public_ip_on_launch = true
+# Default Subnet
+
+resource "aws_default_subnet" "default_az1" {
+    availability_zone = "ap-south-1a"
 }
 
-resource "aws_internet_gateway" "igw" {
-  vpc_id = aws_vpc.main_vpc.id
+# Security Group
+
+resource "aws_security_group" "my_sec_grp"{
+    vpc_id = aws_default_vpc.default.id
+
+    # Inbound Rule
+
+    ingress {
+        from_port = 22
+        to_port = 22
+        protocol = "tcp"
+        cidr_blocks = ["0.0.0.0/0"]
+        description = "SSH open"
+    }
+    ingress {
+        from_port = 80
+        to_port = 80
+        protocol = "tcp"
+        cidr_blocks = ["0.0.0.0/0"]
+        description = "HTTP open"
+    }
+
+    # Outbound Rule
+
+    egress {
+        from_port = 0
+        to_port = 0
+        protocol = "-1"
+        cidr_blocks = ["0.0.0.0/0"]
+        description = "all access open outbound"
+    }
 }
 
-resource "aws_route_table" "public_rt" {
-  vpc_id = aws_vpc.main_vpc.id
+# EC2 Instance
 
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw.id
-  }
+resource "aws_instance" "my_instance"{
+    key_name = aws_key_pair.my_key.key_name 
+    vpc_security_group_ids = [aws_security_group.my_sec_grp.id]
+    instance_type = var.ec2_instance_type
+    ami = var.ec2_instance_image
+    subnet_id = aws_default_subnet.default_az1.id
+
+    # Storage 
+
+    root_block_device{
+        volume_size = var.ec2_instance_volume
+        volume_type = var.ec2_instance_volume_type
+    }
+
+    # Name and Tags
+
+    tags = {
+        Name = "devops-server"
+    }
 }
 
-resource "aws_route_table_association" "public_association" {
-  subnet_id      = aws_subnet.public_subnet.id
-  route_table_id = aws_route_table.public_rt.id
-}
+# Elastic IP
 
-resource "aws_security_group" "web_sg" {
-  name        = "web-sg"
-  description = "Allow SSH and HTTP"
-  vpc_id      = aws_vpc.main_vpc.id
-
-  ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-resource "aws_instance" "web" {
-  ami                         = data.aws_ami.ubuntu.id
-  instance_type               = var.instance_type
-  subnet_id                   = aws_subnet.public_subnet.id
-  vpc_security_group_ids      = [aws_security_group.web_sg.id]
-  associate_public_ip_address = true
-  key_name                    = "ansible-key"
-}
-
-resource "aws_eip" "web_ip" {
-  instance = aws_instance.web.id
+resource "aws_eip" "my_eip" {
+    instance = aws_instance.my_instance.id
+    domain = "vpc"
 }
