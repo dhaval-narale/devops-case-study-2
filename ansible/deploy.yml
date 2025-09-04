@@ -1,6 +1,8 @@
 - name: Deploy Node.js App with Docker
   hosts: app_server
   become: yes
+  vars:
+    image: "dhavalnarale/devops-nodejs-app:latest"
   tasks:
     - name: Install Docker on Ubuntu
       apt:
@@ -17,13 +19,15 @@
 
     - name: Pull Node.js App Image from DockerHub
       community.docker.docker_image:
-        name: dhavalnarale/devops-nodejs-app:latest
+        name: "{{ image }}"
         source: pull
 
     - name: Run Node.js Container
       community.docker.docker_container:
         name: nodejs-app
-        image: dhavalnarale/devops-nodejs-app:latest
+        image: "{{ image }}"
         ports:
           - "80:3000"
+        restart_policy: always
+        recreate: yes
         state: started
