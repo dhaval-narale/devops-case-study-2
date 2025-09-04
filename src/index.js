@@ -5,7 +5,7 @@ const app = express();
 const PORT = 3000;
 
 app.get('/', (req, res) => {
-    res.send('Hello from DevOps Pipeline Node.js App! developed by Dhaval');
+    res.send('Hello from DevOps Pipeline Node.js App! developed by Dhaval Narale');
 });
 
 app.listen(PORT, () => {
