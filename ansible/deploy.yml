@@ -17,10 +17,11 @@
         state: started
         enabled: yes
 
-    - name: Pull Node.js App Image from DockerHub
+    - name: Pull Node.js App Image from DockerHub (force update)
       community.docker.docker_image:
         name: "{{ image }}"
         source: pull
+        force_source: true   # ensures latest image is always pulled
 
     - name: Run Node.js Container
       community.docker.docker_container:
