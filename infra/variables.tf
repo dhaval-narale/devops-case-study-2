@@ -9,7 +9,7 @@ variable "ec2_instance_volume"{
 }
 
 variable "ec2_instance_image"{
-    default = "ami-02d26659fd82cf299"
+    default = "ami-0ecb62995f68bb549"
     type = string
 }
 
