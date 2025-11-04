@@ -19,6 +19,6 @@ variable "ec2_instance_volume_type" {
 }
 
 variable "region" {
-    default = "ap-south-1"
+    default = "us-east-1"
     type = string
 }
